@@ -18,7 +18,7 @@ public class MainUI extends JFrame {
         this.sessionManager = new UserSessionManager(router);
         this.uiManager = new UIManager();
 
-        setTitle("MCData 多使用者面板");
+        setTitle("MCData 多使用者面板...");
         setLayout(new GridLayout(userConfigs.size(), 1));
         setSize(300, 400);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
