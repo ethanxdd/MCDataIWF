@@ -52,7 +52,7 @@ public class try_mcdatainfo_factory {
 	    return null; 
 	}
 	
-	public String string_try_mcdatainfo_factory(String request_type, String groupID, String initiater, String mcdatatype) {//group
+	public String string_try_mcdatainfo_factory(String request_type, String groupID, String initiater, String mcdatatype) {
 	    String Strresult = "";
 	    DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
 	    try {

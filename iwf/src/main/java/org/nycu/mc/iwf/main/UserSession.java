@@ -36,15 +36,14 @@ public class UserSession {
 //        client.sendText(text);
     }
 
-    public void receiveMessage(String text, int dialType, String groupname) throws ParseException, InvalidArgumentException, SipException {//解析無線電端來的值 在選擇要值轄下一ˋㄨ
+    public void receiveMessage(String text, Boolean sendToGroup, String targetname) throws ParseException, InvalidArgumentException, SipException {//解析無線電端來的值 在選擇要值轄下一ˋㄨ
 //        if (ui != null) {
 //            ui.appendMessage(text);
 //        }
     	UUID conversationID_uuid = UUID.randomUUID();
 	     String conversationID_uuidAsString = conversationID_uuid.toString();
-    	String grouporone = "group";
-    	System.out.println("[receiveMessage]"+groupname);
-    	client.sendMESSAGE(groupname, text, grouporone, "text", groupname, true, conversationID_uuidAsString);
+    	System.out.println("[receiveMessage]"+targetname);
+    	client.sendMESSAGE(targetname, text, sendToGroup, conversationID_uuidAsString);
     }
 
     public String getDisplayName() {

@@ -435,12 +435,19 @@ public class MCDataClient implements SipListener{
         return messageFactory.createRequest(requestURI, "REGISTER", callIdHeader, cSeqHeader, fromHeader, toHeader, viaHeaders, maxForwardsHeader);
     }
     
-    public void sendMESSAGE(String groupURI, String content, String type, String payloadtype, String receiver, Boolean userorapp, String conversationid) throws ParseException, InvalidArgumentException, SipException {
+    public void sendMESSAGE(String targetname, String content, Boolean sendToGroup, String conversationid) throws ParseException, InvalidArgumentException, SipException {
 	    AddressFactory addressFactory = this.addressFactory;
 	    SipProvider sipProvider = this.sipProvider;
 	    MessageFactory messageFactory = this.messageFactory;
 	    HeaderFactory headerFactory = this.headerFactory;
 	    
+	    String siptargetname ="";
+	    if (targetname.contains("@")) {
+	    	siptargetname = "sip:" + targetname;
+	    } else {
+	    	siptargetname = "sip:" + targetname + "@" + RemoteIp;
+	    }
+    
 	    CallIdHeader callIdheader = sipProvider.getNewCallId();
 	    messageCSeq++;
 	    CSeqHeader cSeqHeader = headerFactory.createCSeqHeader(messageCSeq, "MESSAGE");
@@ -454,13 +461,13 @@ public class MCDataClient implements SipListener{
 	    } else {
 	        sipServer = RemoteIp;
 	    }	
-	    Address toAddress = addressFactory.createAddress("sip:" + groupURI);
+	    Address toAddress = addressFactory.createAddress(siptargetname);
 	    ToHeader toHeader = headerFactory.createToHeader(toAddress, null);
-	    URI publishURI = addressFactory.createAddress("sip:" + groupURI ).getURI();
-	    if(type=="one") {
-	    	toHeader = headerFactory.createToHeader(addressFactory.createAddress("sip:"+receiver+"@" + RemoteIp), null);
-	    	publishURI = addressFactory.createAddress("sip:" + receiver + "@" + RemoteIp).getURI();
-	    }
+	    URI publishURI = addressFactory.createAddress(siptargetname).getURI();
+//	    if(!sendToGroup) {
+//	    	toHeader = headerFactory.createToHeader(addressFactory.createAddress("sip:"+receiver+"@" + RemoteIp), null);
+//	    	publishURI = addressFactory.createAddress("sip:" + receiver + "@" + RemoteIp).getURI();
+//	    }
 	    ArrayList<ViaHeader> viaList = createMessageViaHeader();
 	    MaxForwardsHeader maxForwardsHeader = headerFactory.createMaxForwardsHeader(70);
 	    Request request = messageFactory.createRequest(publishURI, "MESSAGE", callIdheader, cSeqHeader, 
@@ -482,13 +489,13 @@ public class MCDataClient implements SipListener{
 
 	    sipRequest.setHeader(headerFactory.createHeader("P-Preferred-Service", "urn:urn-7:3gpp-service.ims.icsi.mcdata.sds"));
 	    List<Content> contents = new ArrayList<>();
-	    if(type == "one") {
-	    	Content resourceContent = MessageDataresourcecontent(receiver);
+	    if(!sendToGroup) {
+	    	Content resourceContent = MessageDataresourcecontent(siptargetname);
 	    	contents.add(resourceContent);
 	    }
-	    Content mcdatainfoContent = MessageMcdatainfocContent(groupURI, type);
+	    Content mcdatainfoContent = MessageMcdatainfocContent(targetname, sendToGroup, "sds");
 	    Content signallingContent = MessageDatasignallingcontent(conversationid);
-	    Content DataPayloadContent = MessageDataPayloadcontent(content, payloadtype, userorapp);
+	    Content DataPayloadContent = MessageDataPayloadcontent(content, "text", true);//?text
     
 	    contents.add(mcdatainfoContent);//
 	    contents.add(signallingContent);
@@ -519,12 +526,12 @@ public class MCDataClient implements SipListener{
 	    return viaHeaders;
 	  }
     
-    private Content MessageMcdatainfocContent(String GroupURI, String type) {
+    private Content MessageMcdatainfocContent(String GroupURI, Boolean sendToGroup) {
 	    ArrayList<String> group_list = new ArrayList<>();
 	    group_list.add(GroupURI);
 	    try_mcdatainfo_factory pidf = new try_mcdatainfo_factory();
 	    String pidfxml="";
-	    if(type=="group") {
+	    if(sendToGroup) {
 	    	pidfxml = pidf.string_try_mcdatainfo_factory("Normal","",GroupURI, String.valueOf(sipUserName) + "@" + RemoteIp);
 	    }else {
 	    	pidfxml = pidf.string_try_mcdatainfo_factory("Normal",String.valueOf(sipUserName) + "@" + RemoteIp,"sds");
@@ -536,10 +543,27 @@ public class MCDataClient implements SipListener{
 	      	return null;
 	    } 
 	}
+    
+    private Content MessageMcdatainfocContent(String GroupURI, Boolean sendToGroup, String mcdatatype) {
+	    try_mcdatainfo_factory pidf = new try_mcdatainfo_factory();
+	    String pidfxml="";
+	    if(sendToGroup) {
+	    	pidfxml = pidf.string_try_mcdatainfo_factory("Normal",GroupURI, String.valueOf(sipUserName) + "@" + RemoteIp, mcdatatype);
+	    }else {
+	    	pidfxml = pidf.string_try_mcdatainfo_factory("Normal",String.valueOf(sipUserName) + "@" + RemoteIp, mcdatatype);
+	    }
+	    try {
+	        return createContent(pidfxml, "application", "vnd.3gpp.mcdata-info+xml", null);
+	    } catch (ParseException e) {
+	        e.printStackTrace();
+	        return null;
+	    } 
+	}
+    
 
     private Content MessageDataresourcecontent(String receiver) {
   	  	try_mcdataresource_factory mcdatainfo = new try_mcdataresource_factory();
-  		String mcpdatainfoxml = mcdatainfo.string_try_mcdataresource_factory("Normal", String.valueOf("sip:"+receiver+"@" + RemoteIp));
+  		String mcpdatainfoxml = mcdatainfo.string_try_mcdataresource_factory("Normal", String.valueOf(receiver));
 	    try {
 	    	return createContent(mcpdatainfoxml, "application", "resource-lists+xml", null);
 	    } catch (ParseException e) {

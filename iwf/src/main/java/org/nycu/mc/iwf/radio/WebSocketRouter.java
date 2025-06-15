@@ -185,11 +185,12 @@ public class WebSocketRouter {
 	    System.out.println("DialType: " + DialType);
 	    System.out.println("ConReqId: " + ConReqId);
 	    System.out.println("Msg: " + msgContent);
+	    Boolean sendToGroup = to.length() == 2;
 //
 //      // 可根據 From 當作 userId
       UserSession session = sessionMap.get(remapUserId(from));
       if (session != null) {
-          session.receiveMessage(msgContent, DialType, remapUserId(to)); // 或其他你想傳送的部分
+          session.receiveMessage(msgContent, sendToGroup, remapUserId(to)); // DailTYPE 好像無用
 
 
       } else {

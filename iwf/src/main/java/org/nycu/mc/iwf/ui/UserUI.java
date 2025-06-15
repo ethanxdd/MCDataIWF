@@ -2,9 +2,12 @@ package org.nycu.mc.iwf.ui;
 
 import org.nycu.mc.iwf.main.UserSession;
 
+import javax.sip.InvalidArgumentException;
+import javax.sip.SipException;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.text.ParseException;
 
 import javax.swing.*;
 import java.awt.*;
@@ -29,7 +32,7 @@ public class UserUI extends JFrame {
         setLocationRelativeTo(null);
 
         // 左邊：功能選單（用 JList 或按鈕面板）
-        String[] functions = {"登入登出", "傳送訊息", "設定狀態"};
+        String[] functions = {"login/out", "SDS", "status"};
         JList<String> functionList = new JList<>(functions);
         functionList.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         functionList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -42,9 +45,9 @@ public class UserUI extends JFrame {
         rightPanel = new JPanel(cardLayout);
 
         // 加入各功能對應的畫面（Panel 可自訂）
-        functionPanels.put("登入登出", createLoginPanel());
-        functionPanels.put("傳送訊息", createSendMessagePanel());
-        functionPanels.put("設定狀態", createStatusPanel());
+        functionPanels.put("login/out", createLoginPanel());
+        functionPanels.put("SDS", createSendMessagePanel());
+        functionPanels.put("status", createStatusPanel());
 
         for (Map.Entry<String, JPanel> entry : functionPanels.entrySet()) {
             rightPanel.add(entry.getValue(), entry.getKey());
@@ -93,10 +96,16 @@ public class UserUI extends JFrame {
         JPanel panel = new JPanel(new BorderLayout());
 
         JTextArea messageArea = new JTextArea();
-        JButton sendBtn = new JButton("送出");
+        JButton sendBtn = new JButton("SDS");
         sendBtn.addActionListener(e -> {
             String msg = messageArea.getText();
             System.out.println("傳送訊息：" + msg);
+            try {
+				session.receiveMessage("text", true, "2024_3_21_341949@140.113.110.221");
+			} catch (ParseException | InvalidArgumentException | SipException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
         });
 
         panel.add(new JScrollPane(messageArea), BorderLayout.CENTER);
