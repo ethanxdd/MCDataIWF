@@ -21,14 +21,14 @@ public class MediaSipSession {
     private String callIdIp;
     private boolean isActive;
     private boolean isfirstTalk;
-//    private static PermissionState permissionState;
+    private static PermissionState permissionState;
     private Dialog dialog;
-//    private MediaSessionState mediaSessionState;
+    private MediaSessionState mediaSessionState;
     private Transaction inviteTransacation;
     private boolean isEmergency;
     private Map<String, String> userActiveMap;
-//    private PeerInfo peerInfo;
-//    private MeaninglessSender rtcpMeaninglesSender;
+    private PeerInfo peerInfo;
+    private MeaninglessSender rtcpMeaninglesSender;
     private boolean isConnect = false;
     private boolean isGroup;
 
@@ -44,10 +44,10 @@ public class MediaSipSession {
     private void createSipSession(SipUri peerSipUri) {
         this.isfirstTalk = true;
         this.isActive = false;
-//        permissionState = new PermissionState(this);
+        permissionState = new PermissionState(this);
         this.userActiveMap = new HashMap<String, String>();
-//        this.mediaSessionState = new MediaSessionState(this);
-//        this.peerInfo = new PeerInfo(peerSipUri);
+        this.mediaSessionState = new MediaSessionState(this);
+        this.peerInfo = new PeerInfo(peerSipUri);
     }
 
     public Dialog getDialog() {
@@ -83,8 +83,8 @@ public class MediaSipSession {
     }
 
     public void setIsActive(boolean isActive) {
-//        this.isActive = isActive;
-//        if (isActive) {
+        this.isActive = isActive;
+        if (isActive) {
 //            SipClient sipClient = SipClient.getInstance();
 //            if (sipClient != null) {
 //                this.subscribeGroup(sipClient);
@@ -92,48 +92,48 @@ public class MediaSipSession {
 //            if (this.rtcpMeaninglesSender == null) {
 //            	System.out.println("[setIsActive]-rtcp");
 //                DatagramSocket socket = Proxy.getInstance().getRTCPSocket();
-//                this.rtcpMeaninglesSender = new MeaninglessSender(socket, this.peerInfo.getPeerIp(), this.peerInfo.getPeerRtcpPort(), "0");
+//                this.rtcpMeaninglesSender = new MeaninglessSender(socket, this.peerInfo.getPeerIp(), this.peerInfo.getPeerRtcpPort());
 //                this.rtcpMeaninglesSender.setTag("setIsActive: true  Meaningless send");
 //                this.rtcpMeaninglesSender.printInfo();
 //            }
 //            this.rtcpMeaninglesSender.start();
-//        } else if (this.rtcpMeaninglesSender != null) {
-//            this.rtcpMeaninglesSender.stop();
-//        }
-//        if (!this.isGroup) {
-//            this.isConnect = isActive;
-//        }
+        } else if (this.rtcpMeaninglesSender != null) {
+            this.rtcpMeaninglesSender.stop();
+        }
+        if (!this.isGroup) {
+            this.isConnect = isActive;
+        }
     }
 
     private void subscribeGroup(final MCDataClient sipClient) {
-//        Runnable runnable = new Runnable(){
-//
-//            @Override
-//            public void run() {
+        Runnable runnable = new Runnable(){
+
+            @Override
+            public void run() {
 //                sipClient.sendConferenceSubscribe(sipTarget);
-//                Thread.currentThread().interrupt();
-//            }
-//        };
-//        Thread thread = new Thread(runnable);
-//        thread.setName("subscribeGroup");
-//        thread.start();
+                Thread.currentThread().interrupt();
+            }
+        };
+        Thread thread = new Thread(runnable);
+        thread.setName("subscribeGroup");
+        thread.start();
     }
 
-//    public MeaninglessSender getMeaningSender() {
-//        return this.rtcpMeaninglesSender;
-//    }
-//
-//    public static PermissionState getPermissionState() {
-//        return permissionState;
-//    }
+    public MeaninglessSender getMeaningSender() {
+        return this.rtcpMeaninglesSender;
+    }
+
+    public static PermissionState getPermissionState() {
+        return permissionState;
+    }
 
     public static String getSipTarget() {
         return sipTarget;
     }
 
-//    public MediaSessionState getMediaSessionState() {
-//        return this.mediaSessionState;
-//    }
+    public MediaSessionState getMediaSessionState() {
+        return this.mediaSessionState;
+    }
 
     public Transaction getInviteTransacation() {
         return this.inviteTransacation;
@@ -163,9 +163,9 @@ public class MediaSipSession {
         this.userActiveMap = userActiveMap;
     }
 
-//    public PeerInfo getPeerInfo() {
-//        return this.peerInfo;
-//    }
+    public PeerInfo getPeerInfo() {
+        return this.peerInfo;
+    }
 
     public boolean isConnect() {
         return this.isConnect;

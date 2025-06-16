@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 import javax.net.msrp.exceptions.InternalErrorException;
 //import javax.net.msrp.exceptions.InternalErrorException;
 import javax.sip.ClientTransaction;
+import javax.sip.Dialog;
 import javax.sip.DialogTerminatedEvent;
 import javax.sip.IOExceptionEvent;
 import javax.sip.InvalidArgumentException;
@@ -44,7 +45,9 @@ import javax.sip.TransportAlreadySupportedException;
 import javax.sip.TransportNotSupportedException;
 import javax.sip.address.Address;
 import javax.sip.address.AddressFactory;
+import javax.sip.address.SipURI;
 import javax.sip.address.URI;
+import javax.sip.header.AllowHeader;
 import javax.sip.header.CSeqHeader;
 import javax.sip.header.CallIdHeader;
 import javax.sip.header.ContactHeader;
@@ -63,10 +66,14 @@ import javax.sip.message.MessageFactory;
 import javax.sip.message.Request;
 import javax.sip.message.Response;
 import javax.swing.JOptionPane;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 
 import org.nycu.mc.iwf.Session.MediaSipSession;
+import org.nycu.mc.iwf.Session.MySdpInfo;
+import org.nycu.mc.iwf.Session.PeerInfo;
 import org.nycu.mc.iwf.main.config.ClientConfig;
+import org.nycu.mc.iwf.proxy.Proxy;
 import org.nycu.mc.iwf.radio.RadioMessage;
 import org.nycu.mc.iwf.radio.WebSocketRouter;
 import org.nycu.mc.iwf.sipMessageHandle.RequestObject;
@@ -78,6 +85,7 @@ import org.nycu.mc.iwf.xml_generator.try_mcdatainfo_factory;
 import org.nycu.mc.iwf.xml_generator.try_mcdatapayload_factory;
 import org.nycu.mc.iwf.xml_generator.try_mcdataresource_factory;
 import org.nycu.mc.iwf.xml_generator.try_mcdatasignalling_factory;
+import org.nycu.mc.iwf.xml_generator.try_mcpttinfo_factory;
 import org.nycu.mc.iwf.xml_generator.try_parser;
 import org.xml.sax.SAXException;
 
@@ -87,12 +95,16 @@ import gov.nist.javax.sip.address.SipUri;
 import gov.nist.javax.sip.clientauthutils.AccountManager;
 import gov.nist.javax.sip.clientauthutils.AuthenticationHelper;
 import gov.nist.javax.sip.header.ContentType;
+import gov.nist.javax.sip.header.HeaderFactoryImpl;
+import gov.nist.javax.sip.header.ReferTo;
 import gov.nist.javax.sip.header.Require;
 import gov.nist.javax.sip.header.UserAgent;
+import gov.nist.javax.sip.header.ims.PPreferredIdentityHeader;
 import gov.nist.javax.sip.message.Content;
 import gov.nist.javax.sip.message.ContentImpl;
 import gov.nist.javax.sip.message.MultipartMimeContentImpl;
 import gov.nist.javax.sip.message.SIPRequest;
+import gov.nist.javax.sip.message.SIPResponse;
 import gov.nist.javax.sip.stack.SIPClientTransaction;
 import gov.nist.javax.sip.stack.SIPDialog;
 import gov.nist.javax.sip.stack.SIPServerTransactionImpl;
@@ -118,6 +130,7 @@ public class MCDataClient implements SipListener{
 //    private String sipPassword;
     
     private Map<String, SubscribeDialog> subscribeMap;
+    private Map<String, MediaSipSession> mediaSipSessionMap;
     
     private String StunServer;
     private static AccountManager accountManager;
@@ -132,6 +145,9 @@ public class MCDataClient implements SipListener{
     public ListeningPoint tcpListeningPoint;
     public static SipPublishSender sipPublishSender;
     
+    private Proxy proxy;
+    private DatagramSocket socket;
+    
     private String registerContactAddress;
     public String registerCallId;
     public int registerCSeq;
@@ -139,6 +155,7 @@ public class MCDataClient implements SipListener{
     public String publishCallId;
     public int publishCSeq;
     private int ErrorAccount = 0;
+    private int RtpPort = 0;
 
     private ClientTransaction inviteTransaction;
     private ClientTransaction publishTransaction;
@@ -146,6 +163,10 @@ public class MCDataClient implements SipListener{
 //    private Map<String, MediaSipSession> mediaSipSessionMap;
 //    private Map<String, MediaSipSession> EMRmediaSipSessionMap;
     private Boolean PESessionE= true;
+    private int kyinfoValue = 0;
+    private String pIP = "";
+    private int pRtcpPort = 0;
+    private int pRtpPort = 0;
 
     private long sessinID = -1L;
     private int registerCount = 0;
@@ -873,57 +894,129 @@ public class MCDataClient implements SipListener{
 	    } 
     }
     
-    private void onInviteRequest(RequestObject requestObj, SIPServerTransactionImpl sipServerTransaction, SIPDialog sipDialog) throws Throwable {
-//        System.out.println("[onInviteRequest]");
-//        String domain = requestObj.getCallIdString();
-//        if ((domain = domain.substring(domain.indexOf("@") + 1, domain.length())).equals(this.EMR_parameters.EMRIp)) {
-//        	System.out.println("[onInviteRequest12]");
-//            if (proxy == null || this.GroupName == "") {
-//            	System.out.println("[onInviteRequest13]");
-//                List<String> GetDirectInfo = this.getAffiliatedGroup(sipUserName, RemoteIp);
-//                if (GetDirectInfo.size() == 0) {
-//                    this.send481Response(sipServerTransaction, requestObj.getSipRequest());
-//                } else {
-//                    SIPRequest sipRequest;
-//                    this.sendTrying(sipServerTransaction, requestObj.getSipRequest());
-//                    this.sendRing(sipServerTransaction, requestObj.getSipRequest());
-//                    this.EMRinviteCallID = requestObj.getCallIdString();
-//                    SIPRequest request = sipRequest = requestObj.getSipRequest();
-//                    try {
-//                        SIPDialog sipDialog1 = (SIPDialog)EMRProvider.getNewDialog(sipServerTransaction);
-//                        this.createresponse(requestObj, sipServerTransaction, sipDialog1);
-//                    }
-//                    catch (SipException e2) {
-//                        e2.printStackTrace();
-//                    }
-//                    this.sendinvite();
-//                    this.pasercallinfo(sipRequest);
-//                }
-//            } else {
-//            	System.out.println("[onInviteRequest14]");
-//                this.sendTrying(sipServerTransaction, requestObj.getSipRequest());
-//                this.sendRing(sipServerTransaction, requestObj.getSipRequest());
-//                this.EMRinviteCallID = requestObj.getCallIdString();
-//                SIPRequest sipRequest = requestObj.getSipRequest();
-//                this.pasercallinfo(sipRequest);
-//                this.UpgradeCancel();
-//                SIPRequest request = sipRequest;
-//                try {
-//                	System.out.println("[onInviteRequest16]");
-//                    SIPDialog sipDialog2 = (SIPDialog)EMRProvider.getNewDialog(sipServerTransaction);
-//                    this.createresponse(requestObj, sipServerTransaction, sipDialog2);
-//                }
-//                catch (SipException e3) {
-//                    e3.printStackTrace();
-//                }
-//                instance = this;
-//                System.out.println("[start proxy]");
-//                proxy.getRTCPProxy().getRTCPThread().getHandler().setTwoModeHandler(1, mySdpInfo.getIp(), mySdpInfo.getPort(), this.EMR_parameters.MCPTTUserlocalIp, this.getRtpPort(), this.EMR_parameters.LMRLocalIp, 12001, EMRSdpInfo.getIp(), EMRSdpInfo.getPort());
-//                System.out.println("[end proxy]");
-//                DatagramSocket datagramSocket = proxy.getRTCPSocket();
-//                this.FloorRequest(datagramSocket);
-//            }
-//        }
+    private void onInviteOK(ResponseObject responseObj, ResponseEvent responseEvent) {
+    	String domain = responseObj.getCallIdString();
+    	domain = domain.substring(domain.indexOf("@") + 1, domain.length());
+    	try {
+    		if (responseObj.getEventHeader() != null) {
+    			String EventHeader = responseObj.getEventHeader();
+    			EventHeader = EventHeader.replaceAll("\\s+", "");
+    			if (EventHeader.equals("MEGC")) {
+    				MediaSipSession mediaSipSession = mediaSipSessionMap.get(responseObj.getCallIdString());
+    				if (mediaSipSession == null)
+    					return; 
+    				SIPDialog sipDialog = (SIPDialog)mediaSipSession.getDialog();
+    				sendACK(responseObj, (Dialog)sipDialog);
+    			} 
+    		} else {
+    			MySdpInfo mySdpInfo = getSDPInfo(new String(responseObj.getRawContent()));//將Server端rtcp存到mysdpinfo中
+//      		Map<String, MediaSipSession> sessionMap = mediaSipSessionMap;
+    			MediaSipSession mediaSipSession = mediaSipSessionMap.get(responseObj.getCallIdString());
+    			System.out.println("[oninviteok]"+responseObj.getCallIdString()+" session"+mediaSipSession);
+    			if (mediaSipSession == null)
+    				return; 
+    			if (mediaSipSession.isActive())
+    				return; 
+    			String GroupURI = mediaSipSession.getPeerInfo().getPeerSipUri().toString().split("sip:")[1];
+//      		this.GroupName = GroupURI.split("@")[0];
+    			SIPDialog sipDialog = (SIPDialog)responseEvent.getDialog();
+    			sendACK(responseObj, (Dialog)sipDialog);//單純sendack
+    			setPeerInfoFromResponse(responseObj, mediaSipSession);
+    			activeMediaSipSession(mediaSipSession);
+    			String GroupName = getTarget(MediaSipSession.getSipTarget()).split("@")[0];
+    			String ServerIP = getTarget(MediaSipSession.getSipTarget()).split("@")[1];
+    			sendReferPRG(GroupName, ServerIP);
+    		} 
+    	} catch (Exception e) {
+    		e.printStackTrace();
+    	} 
+    }
+
+    private void sendACK(ResponseObject responseObject, Dialog dialog) {
+        try {
+            SIPRequest ack = (SIPRequest)dialog.createAck(responseObject.getCSeq().getSeqNumber());
+            ack.setRequestURI(SipMessageUtils.createSipUri(sipUserName, RemoteIp, RemotePort, null));
+            dialog.sendAck(ack);
+        }
+        catch (InvalidArgumentException e2) {
+            e2.printStackTrace();
+        }
+        catch (SipException e3) {
+            e3.printStackTrace();
+        }
+    }
+    
+    private MySdpInfo getSDPInfo(String sessionDescription) throws Exception {
+        String[] lines = sessionDescription.trim().replaceAll(" +", " ").split("[\r\n]+");
+        String mediaType = "";
+        String peerIP = "n/a";
+        int peerPort = -1;
+        int peerRtcpPort = -1;
+        String[] stringArray = lines;
+        int n2 = lines.length;
+        int n3 = 0;
+        while (n3 < n2) {
+            String lineRtcp;
+            List<String> matched;
+            String line = stringArray[n3];
+            if (line.charAt(0) == 'c') {
+                String linec = line;
+                matched = this.getMatched(linec, "IP[0-9]* [0-9.]*");
+                if (matched.size() != 1) throw new Exception("content/IP error!!");
+                peerIP = matched.get(0).replace("IP4", "").replace("IP6", "").trim();
+            } else if (line.charAt(0) == 'm') {
+                String linem = line;
+                matched = this.getMatched(linem, "(m=audio [0-9]* RTP/AVP)|(m=video [0-9]* RTP/AVP)");
+                if (matched.size() == 1) {
+                    mediaType = this.getMatched(matched.get(0), "audio|video").get(0);
+                    peerPort = Integer.parseInt(matched.get(0).replace("m=audio", "").replace("m=video", "").replace("RTP/AVP", "").trim());
+                }
+            } else if (line.charAt(0) == 'a' && (matched = this.getMatched(lineRtcp = line, "a=rtcp:[0-9]*")).size() == 1) {
+                peerRtcpPort = Integer.parseInt(matched.get(0).replace("a=rtcp:", "").trim());
+            }
+            ++n3;
+        }
+        MySdpInfo mySdpInfo = new MySdpInfo();
+        mySdpInfo.setIp(peerIP);
+        mySdpInfo.setPort(peerPort);
+        mySdpInfo.setRtcpPort(peerRtcpPort);
+        mySdpInfo.setMediaType(mediaType);
+        return mySdpInfo;
+    }
+    
+    private List<String> getMatched(String s, String regex1) {
+        ArrayList<String> matchList = new ArrayList<String>();
+        Pattern pattern1 = Pattern.compile(regex1);
+        Matcher matcher = pattern1.matcher(s);
+        while (matcher.find()) {
+            matchList.add(matcher.group());
+        }
+        return matchList;
+    }
+    
+    private void setPeerInfoFromResponse(ResponseObject responseObj, MediaSipSession mediaSipSession) throws Exception {//設定接收到的SDP
+        MySdpInfo mySdpInfo = this.getSDPInfo(new String(responseObj.getRawContent()));
+        PeerInfo peerInfo = mediaSipSession.getPeerInfo();//MeaninglessSender使用
+        peerInfo.setSDPInfo(mySdpInfo);
+        peerInfo.setPeerUserName(responseObj.getToHeaderUserName());
+        peerInfo.setPeerTag(responseObj.getToTag());
+    }
+
+    private void activeMediaSipSession(MediaSipSession mediaSipSession) {
+        try {
+            PeerInfo peerInfo = mediaSipSession.getPeerInfo();
+            if (!peerInfo.getPeerIp().equals("n/a") && peerInfo.getPeerRtpPort() != -1) {
+                String peerIp = peerInfo.getPeerIp();
+                int peerPort = peerInfo.getPeerRtcpPort();
+                mediaSipSession.getMediaSessionState().setRtpport(this.getRtpPort());
+                mediaSipSession.getMediaSessionState().setrtpSocket(proxy.getRTCPProxy().getRTCPThread().getHandler().getRtpSocket());
+//                mediaSipSession.getMediaSessionState().changeState(2, "", this.EMR_parameters.MCPTTUserlocalIp);//啟動RTP
+                mediaSipSession.setIsActive(true);//啟動RTcP
+            }
+        }
+        catch (Exception e2) {
+            e2.printStackTrace();
+        }
     }
     
 //    public void sendText(String text) {
@@ -934,7 +1027,103 @@ public class MCDataClient implements SipListener{
 //
 ////        router.sendMessage(config.getUserId(), msg);
 //    }
+    
+    public void sendReferPRG(String groupName, String sipServer) throws ParseException, InvalidArgumentException, SipException, ParserConfigurationException, TransformerException {
+        AddressFactory addressFactory = this.addressFactory;
+        SipProvider sipProvider = this.sipProvider;
+        MessageFactory messageFactory = this.messageFactory;
+        HeaderFactory headerFactory = this.headerFactory;
+        String groupuri = String.valueOf(groupName) + "@" + sipServer;
+        String temp = "sip:" + groupuri;
+        MediaSipSession mediaSipSession = null;
+        for (String key : mediaSipSessionMap.keySet()) {
+            MediaSipSession session = mediaSipSessionMap.get(key);
+            if (!session.getPeerInfo().getPeerSipUri().toString().equals(temp)) continue;
+            mediaSipSession = session;
+        }
+        SIPDialog sipDialog = (SIPDialog)mediaSipSession.getDialog();
+        SIPRequest sipRequest = (SIPRequest)sipDialog.createRequest("REFER");
+        sipRequest.getRequestLine().setUri(mediaSipSession.getPeerInfo().getPeerSipUri());
+        Address localAddress = this.createContactAddress();
+        ContactHeader contactHeader = headerFactory.createContactHeader(localAddress);
+        contactHeader.setParameter("isfocus", null);
+        sipRequest.setHeader(contactHeader);
+        String referToTarget = MediaSipSession.getSipTarget();
+        Address referToAddr = addressFactory.createAddress(referToTarget);
+        ReferTo referTo = (ReferTo)headerFactory.createReferToHeader(referToAddr);
+        referTo.setParameter("session", "prearranged");
+        sipRequest.setHeader(referTo);
+        SipURI userURI = addressFactory.createSipURI(sipUserName, localIp);
+        Address userURIaddr = addressFactory.createAddress(userURI);
+        HeaderFactoryImpl headerfactoryImpl = new HeaderFactoryImpl();
+        PPreferredIdentityHeader PPI = headerfactoryImpl.createPPreferredIdentityHeader(userURIaddr);
+        sipRequest.setHeader(PPI);
+        sipRequest.setHeader(headerFactory.createHeader("P-Preferred-Service", "urn:urn-7:3gpp-service.ims.icsi.mcptt"));
+        Content mcpttinfoContent = this.ReferMcpttinfocContent(groupName);
+        Content sdpContent = this.createReferSDPContent(sessinID, this.socket, null);
+        ArrayList<Content> contents = new ArrayList<Content>();
+        contents.add(mcpttinfoContent);
+        contents.add(sdpContent);
+        this.setMutiPartContents(sipRequest, contents);
+        sipRequest.getTopmostViaHeader().setRPort();
+        SIPClientTransaction transaction = (SIPClientTransaction)sipProvider.getNewClientTransaction(sipRequest);
+        mediaSipSession.getDialog().sendRequest(transaction);
+        System.out.println("[refer]");
+//        if (!this.getPESessionE()) {//應該不會走這
+        if(false) {
+        	System.out.println("[refer]2");
+            proxy.getRTCPProxy().getRTCPThread().getHandler().setSession(mediaSipSession);
+            proxy.start();
+//            instance = this;
+//            proxy.getRTCPProxy().getRTCPThread().getHandler().setTwoModeHandler(1, mySdpInfo.getIp(), mySdpInfo.getPort(), this.EMR_parameters.MCPTTUserlocalIp, this.getRtpPort(), this.EMR_parameters.LMRLocalIp, 12001, EMRSdpInfo.getIp(), EMRSdpInfo.getPort());
+            System.out.println("[refer]22");
+        } else {
+        	System.out.println("[refer]3");
+//            proxy.getRTCPProxy().getRTCPThread().getHandler().setAllParm(1024, mySdpInfo.getIp(), mySdpInfo.getPort(), this.EMR_parameters.MCPTTUserlocalIp, this.getRtpPort(), this.EMR_parameters.LMRLocalIp, 12001, "255.255.255.255", 30000);
+//            proxy.getRTCPProxy().getRTCPThread().getHandler().setSession(mediaSipSession);
+            proxy.start();
+            System.out.println("[refer]33");
+        }
+    }
 
+    private Content ReferMcpttinfocContent(String groupName) throws ParserConfigurationException, TransformerException {
+        String clientURI = String.valueOf(sipUserName) + "@" + RemoteIp;
+        String groupURI = String.valueOf(groupName) + "@" + RemoteIp;
+        try_mcpttinfo_factory mcpttinfo2 = new try_mcpttinfo_factory();
+        String mcpttinfoxml = mcpttinfo2.string_try_mcpttinfo_factory("Normal", clientURI, groupURI);
+        try {
+            return this.createContent(mcpttinfoxml, "application", "vnd.3gpp.mcptt-info+xml", null);
+        }
+        catch (ParseException e2) {
+            e2.printStackTrace();
+            return null;
+        }
+    }
+    
+    private Content createReferSDPContent(long sessionId, DatagramSocket socket, MediaSipSession mediaSipSession) throws ParseException {
+        SimpleSessionDescription offerSDP = null;
+        offerSDP = this.createOffer(sessionId, this.pRtpPort, this.pRtcpPort, this.pIP);
+        if (offerSDP != null) {
+        	System.out.println("[offerSDP]"+offerSDP);
+            return this.createContent(offerSDP.encode(), "application", "sdp", null);
+        }
+        return null;
+    }
+    
+    private SimpleSessionDescription createOffer(long sessionId, int streamLocalPort, int rtcpPort, String localIPAddr) {
+        SimpleSessionDescription offer = new SimpleSessionDescription("IWF", sessionId, localIPAddr);
+        SimpleSessionDescription.Media media = null;
+        media = offer.newMedia("audio", streamLocalPort, 1, "RTP/AVP");
+        media.setRtpPayload(0, "PCMU/8000", null);
+        media.setRtpPayload(8, "PCMA/8000", null);
+        SimpleSessionDescription.Media mediaRTCP = offer.newMedia("application", rtcpPort, 1, "udp RTCP");
+        media.setRtpPayload(127, "telephone-event/8000", "0-15");
+        offer.setAttribute("rtcp", String.valueOf(rtcpPort));
+        offer.setAttribute("fmtp", "MCPTT mc_queueing;mc_priority=4;mc_granted;mc_implicit_request");
+        offer.setAttribute("inactive", "inactive");
+        return offer;
+    }
+    
     public void onMessage(RadioMessage msg) {
 //        session.receiveMessage("From " + msg.getFrom() + ": " + msg.getContent());
     }
@@ -961,20 +1150,10 @@ public class MCDataClient implements SipListener{
         if (requestMethod.equals("INVITE")) {
             try {
             	sipServerTransaction = getSipServerTransaction(requestEvent);
-    	        onInviteRequest(requestObj, sipServerTransaction, sipDialog);
+//    	        onInviteRequest(requestObj, sipServerTransaction, sipDialog);
 //                this.onInviteRequest(requestObj, sipServerTransaction, sipDialog);
             }
-            catch (PeerUnavailableException peerUnavailableException) {
-            }
-            catch (ParseException e2) {
-                e2.printStackTrace();
-            }
-            catch (IOException e3) {
-                e3.printStackTrace();
-            }
-            catch (TransformerException e4) {
-                e4.printStackTrace();
-            } catch (Throwable e) {
+            catch (Throwable e) {
 				e.printStackTrace();
 			}
         } else if (requestMethod.equals("BYE")) {
@@ -1098,8 +1277,8 @@ public class MCDataClient implements SipListener{
         if (cSeqMethod.equals("REGISTER")) {
             this.onRegisterOK(responseObj);
         } 
-//        else if (cSeqMethod.equals("INVITE")) {
-//            this.onInviteOK(responseObj, responseEvent);
+        else if (cSeqMethod.equals("INVITE")) {
+            this.onInviteOK(responseObj, responseEvent);
 //        } else if (!cSeqMethod.equals("SUBSCRIBE")) {
 //            if (cSeqMethod.equals("PUBLISH")) {
 //                this.onPublishOK(responseObj);
@@ -1110,7 +1289,7 @@ public class MCDataClient implements SipListener{
 //                    cSeqMethod.equals("REFER");
 //                }
 //            }
-//        }
+        }
     }
 	
 	private void on401or407Response(ResponseObject responseObj, ClientTransaction tid) {
@@ -1197,13 +1376,25 @@ public class MCDataClient implements SipListener{
 	        UserAgent userAgent = new UserAgent();
 	        userAgent.setProduct(userAgentList);
 	        request.setHeader(userAgent);
-	    }
+	 }
 	 
 	public void setisRegister(boolean R) {
         this.isRegister = R;
     }
 	
-	 public boolean getisRegister() {
-	        return this.isRegister;
-	    }
+ 	public boolean getisRegister() {
+        return this.isRegister;
+    }
+ 	
+ 	private String getTarget(String target) {
+        return target.split("sip:")[1];
+    }
+ 	
+ 	public int getRtpPort() {
+        return this.RtpPort;
+    }
+
+    public void setRtpPort(int port) {
+        this.RtpPort = port;
+    }
 }
